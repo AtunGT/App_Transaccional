@@ -4,6 +4,7 @@ import 'package:app_transaccional/features/auth/presentation/viewmodels/auth_vie
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -54,8 +55,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _pickImage() async {
     final image = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (image == null) return;
+
+    File file = File(image.path);
+    int sizeInBytes = await file.length();
+    const int targetSize = 1250000;
+
+    if (sizeInBytes > targetSize) {
+      final dir = file.parent.path;
+      final targetPath = '$dir/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      int quality = 95;
+      XFile? compressedImage;
+
+      while (sizeInBytes > targetSize && quality > 5) {
+        compressedImage = await FlutterImageCompress.compressAndGetFile(
+          image.path,
+          targetPath,
+          quality: quality,
+        );
+
+        if (compressedImage != null) {
+          sizeInBytes = await File(compressedImage.path).length();
+          file = File(compressedImage.path);
+        }
+        quality -= 15;
+      }
+    }
+
     setState(() {
-      _imageFile = File(image.path);
+      _imageFile = file;
     });
   }
 
@@ -150,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   : Icons.visibility_off,
                             ),
                             onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
+                                  () => _obscurePassword = !_obscurePassword,
                             ),
                           ),
                         ),
@@ -168,8 +195,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   : Icons.visibility_off,
                             ),
                             onPressed: () => setState(
-                              () => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
+                                  () => _obscureConfirmPassword =
+                              !_obscureConfirmPassword,
                             ),
                           ),
                         ),
@@ -185,8 +212,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 _imageFile == null
                                     ? 'Seleccionar imagen'
                                     : _imageFile!.path
-                                          .split(Platform.pathSeparator)
-                                          .last,
+                                    .split(Platform.pathSeparator)
+                                    .last,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(color: colors.primary),
                               ),
@@ -208,47 +235,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           onPressed: authViewModel.isLoading
                               ? null
                               : () async {
-                                  if (!_hasRequiredFields) {
-                                    _showMessage('Completa todos los campos');
-                                    return;
-                                  }
-                                  if (_passwordController.text !=
-                                      _confirmPasswordController.text) {
-                                    _showMessage(
-                                      'Las contraseñas no coinciden',
-                                    );
-                                    return;
-                                  }
-                                  final success = await authViewModel.register(
-                                    name: _nameController.text.trim(),
-                                    lastname: _lastnameController.text.trim(),
-                                    email: _emailController.text.trim(),
-                                    phoneNumber: _phoneController.text.trim(),
-                                    birthdate: _birthdateController.text.trim(),
-                                    password: _passwordController.text,
-                                    imageFile: _imageFile,
-                                  );
-                                  if (!context.mounted) return;
-                                  if (!success) {
-                                    _showMessage(
-                                      authViewModel.errorMessage ??
-                                          'No se pudo crear la cuenta',
-                                    );
-                                    return;
-                                  }
-                                  Navigator.pop(context);
-                                },
+                            if (!_hasRequiredFields) {
+                              _showMessage('Completa todos los campos');
+                              return;
+                            }
+                            if (_passwordController.text !=
+                                _confirmPasswordController.text) {
+                              _showMessage(
+                                'Las contraseñas no coinciden',
+                              );
+                              return;
+                            }
+                            final success = await authViewModel.register(
+                              name: _nameController.text.trim(),
+                              lastname: _lastnameController.text.trim(),
+                              email: _emailController.text.trim(),
+                              phoneNumber: _phoneController.text.trim(),
+                              birthdate: _birthdateController.text.trim(),
+                              password: _passwordController.text,
+                              imageFile: _imageFile,
+                            );
+                            if (!context.mounted) return;
+                            if (!success) {
+                              _showMessage(
+                                authViewModel.errorMessage ??
+                                    'No se pudo crear la cuenta',
+                              );
+                              return;
+                            }
+                            Navigator.pop(context);
+                          },
                           child: authViewModel.isLoading
                               ? CircularProgressIndicator(
-                                  color: colors.onPrimary,
-                                )
+                            color: colors.onPrimary,
+                          )
                               : Text(
-                                  'Crear cuenta',
-                                  style: TextStyle(
-                                    color: colors.onPrimary,
-                                    fontSize: 16,
-                                  ),
-                                ),
+                            'Crear cuenta',
+                            style: TextStyle(
+                              color: colors.onPrimary,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
                       ),
                     ],

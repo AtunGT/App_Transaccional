@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:app_transaccional/shared/app_config.dart';
+import 'package:app_transaccional/shared/http_error_logger.dart';
 import 'package:http/http.dart' as http;
 
 class AuthRepositoryException implements Exception {
@@ -14,7 +15,15 @@ class AuthRepositoryException implements Exception {
 
 class AuthRepository {
   final String baseUrl;
-  static String? token;
+  static String? _token;
+
+  static String? get token => _token;
+
+  static bool get isAuthenticated => _token != null && _token!.isNotEmpty;
+
+  static void logout() {
+    _token = null;
+  }
 
   AuthRepository({this.baseUrl = AppConfig.apiBaseUrl});
 
@@ -25,10 +34,21 @@ class AuthRepository {
       body: jsonEncode({'email': email, 'password': password}),
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      token = data['token'];
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final receivedToken = data['token']?.toString();
+      if (receivedToken == null || receivedToken.isEmpty) {
+        throw const AuthRepositoryException(
+          'Login exitoso, pero la API no devolvio token.',
+        );
+      }
+      _token = receivedToken;
       return true;
     }
+    HttpErrorLogger.logResponse(
+      response,
+      operation: 'Login',
+      successCodes: const [200],
+    );
     throw AuthRepositoryException(
       'Login ${response.statusCode}: ${response.body}',
     );
@@ -67,6 +87,12 @@ class AuthRepository {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return true;
     }
+    HttpErrorLogger.logStreamedResponse(
+      response,
+      responseBody.body,
+      operation: 'Registro',
+      successCodes: const [200, 201],
+    );
     throw AuthRepositoryException(
       'Registro ${response.statusCode}: ${responseBody.body}',
     );

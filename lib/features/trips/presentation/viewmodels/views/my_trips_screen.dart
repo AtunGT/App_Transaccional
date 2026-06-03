@@ -1,4 +1,5 @@
 import 'package:app_transaccional/features/trips/presentation/viewmodels/trip_viewmodel.dart';
+import 'package:app_transaccional/features/auth/data/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -66,7 +67,10 @@ class _MyTripsScreenState extends State<MyTripsScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.exit_to_app, color: colors.onPrimary),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              AuthRepository.logout();
+              Navigator.pop(context);
+            },
           ),
         ],
       ),
