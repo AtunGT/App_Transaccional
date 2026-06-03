@@ -1,42 +1,46 @@
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:app_transaccional/shared/app_config.dart';
+import 'package:http/http.dart' as http;
 import '../models/trip_model.dart';
+import '../../auth/data/auth_repository.dart';
 
 class TripRepository {
-  final http.Client client;
-  final String baseUrl = 'http://logired-api.redirectme.net';
+  final String baseUrl;
 
-  TripRepository({required this.client});
+  TripRepository({this.baseUrl = AppConfig.apiBaseUrl});
 
-  final List<TripModel> _mockTrips = [
-    TripModel(id: '1', origin: 'Aeropuerto Internacional', destination: 'Centro Histórico', date: '29 may 2026, 10:30', status: 'Confirmado'),
-    TripModel(id: '2', origin: 'Plaza Mayor', destination: 'Estadio Nacional', date: '30 may 2026, 16:00', status: 'Pendiente'),
-  ];
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ${AuthRepository.token}',
+  };
 
-  Future<List<TripModel>> getTrips() async {
-    try {
-      final response = await client.get(Uri.parse('$baseUrl/trips'));
-      if (response.statusCode == 200) {
-        Iterable l = jsonDecode(response.body);
-        return List<TripModel>.from(l.map((model) => TripModel.fromJson(model)));
-      }
-      return _mockTrips;
-    } catch (_) { return _mockTrips; }
+  Future<List<TripModel>> getMyRides() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/rides/client/me'),
+      headers: _headers,
+    );
+    if (response.statusCode == 200) {
+      List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => TripModel.fromJson(json)).toList();
+    }
+    return [];
   }
 
-  Future<void> createTrip(TripModel trip) async {
-    try {
-      await client.post(Uri.parse('$baseUrl/trips'), body: jsonEncode(trip.toJson()), headers: {'Content-Type': 'application/json'});
-    } catch (_) {
-      _mockTrips.add(trip);
-    }
+  Future<bool> createTrip(TripModel trip) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/rides'),
+      headers: _headers,
+      body: jsonEncode(trip.toJson()),
+    );
+    return response.statusCode == 200 || response.statusCode == 201;
   }
 
-  Future<void> deleteTrip(String id) async {
-    try {
-      await client.delete(Uri.parse('$baseUrl/trips/$id'));
-    } catch (_) {
-      _mockTrips.removeWhere((t) => t.id == id);
-    }
+  Future<bool> updateTripStatus(int tripId, int status) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/rides/$tripId/status'),
+      headers: _headers,
+      body: jsonEncode({'status': status}),
+    );
+    return response.statusCode == 200;
   }
 }

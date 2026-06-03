@@ -1,30 +1,54 @@
 import 'package:flutter/material.dart';
-import '../../models/trip_model.dart';
 import '../../data/trip_repository.dart';
+import '../../models/trip_model.dart';
 
 class TripViewModel extends ChangeNotifier {
-  final TripRepository tripRepository;
-  List<TripModel> trips = [];
-  bool isLoading = false;
+  final TripRepository _repository = TripRepository();
+  List<TripModel> _trips = [];
+  bool _isLoading = false;
 
-  TripViewModel({required this.tripRepository});
+  List<TripModel> get trips => _trips;
+  bool get isLoading => _isLoading;
 
-  Future<void> loadTrips() async {
-    isLoading = true;
+  Future<void> fetchTrips() async {
+    _isLoading = true;
     notifyListeners();
-    trips = await tripRepository.getTrips();
-    isLoading = false;
-    notifyListeners();
+    try {
+      _trips = await _repository.getMyRides();
+    } catch (_) {
+      _trips = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> addTrip(String origin, String destination, String date) async {
-    final newTrip = TripModel(id: DateTime.now().toString(), origin: origin, destination: destination, date: date, status: 'Pendiente');
-    await tripRepository.createTrip(newTrip);
-    await loadTrips();
+  Future<bool> createTrip(TripModel trip) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final success = await _repository.createTrip(trip);
+      if (success) {
+        await fetchTrips();
+      }
+      return success;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
-  Future<void> deleteTrip(String id) async {
-    await tripRepository.deleteTrip(id);
-    await loadTrips();
+  Future<bool> cancelTrip(int tripId) async {
+    try {
+      final success = await _repository.updateTripStatus(tripId, 4);
+      if (success) {
+        await fetchTrips();
+      }
+      return success;
+    } catch (_) {
+      return false;
+    }
   }
 }

@@ -1,45 +1,58 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../data/auth_repository.dart';
 
 class AuthViewModel extends ChangeNotifier {
-  final AuthRepository authRepository;
-  bool isLoading = false;
-  String? token;
+  final AuthRepository _repository = AuthRepository();
+  bool _isLoading = false;
+  String? _errorMessage;
 
-  AuthViewModel({required this.authRepository});
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
 
   Future<bool> login(String email, String password) async {
-    isLoading = true;
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
     try {
-      token = await authRepository.login(email, password);
-      isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      isLoading = false;
-      notifyListeners();
+      return await _repository.login(email, password);
+    } catch (error) {
+      _errorMessage = error.toString();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  Future<bool> register(String name, String email, String password) async {
-    isLoading = true;
+  Future<bool> register({
+    required String name,
+    required String lastname,
+    required String email,
+    required String phoneNumber,
+    required String birthdate,
+    required String password,
+    File? imageFile,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
     try {
-      final success = await authRepository.register(name, email, password);
-      isLoading = false;
-      notifyListeners();
-      return success;
-    } catch (e) {
-      isLoading = false;
-      notifyListeners();
+      return await _repository.register(
+        name: name,
+        lastname: lastname,
+        email: email,
+        phoneNumber: phoneNumber,
+        birthdate: birthdate,
+        password: password,
+        imageFile: imageFile,
+      );
+    } catch (error) {
+      _errorMessage = error.toString();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-  }
-
-  void logout() {
-    token = null;
-    notifyListeners();
   }
 }
