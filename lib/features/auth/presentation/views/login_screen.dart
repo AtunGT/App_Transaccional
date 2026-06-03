@@ -110,11 +110,36 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: authViewModel.isLoading
                               ? null
                               : () async {
+                                  final email = _emailController.text.trim();
+                                  final password = _passwordController.text;
+
+                                  if (email.isEmpty || password.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Ingresa tu correo y contrasena.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
                                   final success = await authViewModel.login(
-                                    _emailController.text,
-                                    _passwordController.text,
+                                    email,
+                                    password,
                                   );
-                                  if (!context.mounted || !success) return;
+                                  if (!context.mounted) return;
+                                  if (!success) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          authViewModel.errorMessage ??
+                                              'No se pudo iniciar sesion.',
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(

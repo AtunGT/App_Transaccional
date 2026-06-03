@@ -31,11 +31,12 @@ class AuthRepository {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': email, 'password': password}),
+      body: jsonEncode({'email': email.trim(), 'password': password}),
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final receivedToken = data['token']?.toString();
+      final receivedToken =
+          _readToken(data) ?? _readAuthorizationToken(response);
       if (receivedToken == null || receivedToken.isEmpty) {
         throw const AuthRepositoryException(
           'Login exitoso, pero la API no devolvio token.',
@@ -49,9 +50,56 @@ class AuthRepository {
       operation: 'Login',
       successCodes: const [200],
     );
-    throw AuthRepositoryException(
-      'Login ${response.statusCode}: ${response.body}',
-    );
+    throw AuthRepositoryException(_readErrorMessage(response));
+  }
+
+  String? _readToken(Map<String, dynamic> data) {
+    final token = data['token'] ?? data['access_token'] ?? data['accessToken'];
+    if (token != null) {
+      return token.toString();
+    }
+
+    final nestedData = data['data'];
+    if (nestedData is Map<String, dynamic>) {
+      return _readToken(nestedData);
+    }
+
+    return null;
+  }
+
+  String? _readAuthorizationToken(http.Response response) {
+    final authorizationHeader = response.headers['authorization'];
+    if (authorizationHeader == null || authorizationHeader.trim().isEmpty) {
+      return null;
+    }
+
+    const bearerPrefix = 'Bearer ';
+    if (authorizationHeader.startsWith(bearerPrefix)) {
+      return authorizationHeader.substring(bearerPrefix.length).trim();
+    }
+
+    return authorizationHeader.trim();
+  }
+
+  String _readErrorMessage(http.Response response) {
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      return 'Correo o contrasena incorrectos.';
+    }
+
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        final message =
+            data['message'] ?? data['error'] ?? data['detail'] ?? data['msg'];
+        if (message != null && message.toString().trim().isNotEmpty) {
+          return message.toString();
+        }
+      }
+    } catch (_) {
+      // If the API does not return JSON, show a generic message below.
+    }
+
+    return 'No se pudo iniciar sesion. Intentalo de nuevo.';
   }
 
   Future<bool> register({
